@@ -19,6 +19,11 @@ app.use(session({
     }
 }));
 
+// Send a test response to the React frontend
+app.get("/api/test", function (req, res) {
+    res.json({ message: "Express is working" });
+});
+
 // Show signup form
 app.get("/signup", function (req, res) {
     res.render("signup", { error: null });
