@@ -324,6 +324,39 @@ app.post("/posts/:id/delete", async function (req, res) {
     }
 });
 
+// Create a post from React
+app.post("/api/posts", async function (req, res) {
+    if (!req.session.user) {
+        return res.status(401).json({ error: "Please sign in." });
+    }
+
+    const input = req.body || {};
+    const title = typeof input.title === "string" ? input.title.trim() : "";
+    const content = typeof input.content === "string" ? input.content.trim() : "";
+
+    if (!title || !content || title.length > 255) {
+        return res.status(400).json({
+            error: "Enter a title and content"
+        });
+    }
+
+    try {
+        const result = await db.query(
+            `INSERT INTO blogs (creator_name, creator_user_id, title, body)
+             VALUES ($1, $2, $3, $4)
+             RETURNING blog_id AS id, creator_name AS author,
+                       creator_user_id, title, body AS content,
+                       date_created AS "createdAt"`,
+            [req.session.user.name, req.session.user.user_id, title, content]
+        );
+
+        res.status(201).json({ post: result.rows[0] });
+    } catch (error) {
+        console.error("Could not create post", error.message);
+        res.status(500).json({ error: "Could not save the post" });
+    }
+});
+
 // Save a blog post tied to the signedin user
 app.post("/posts", async function (req, res) {
     if (!req.session.user) {

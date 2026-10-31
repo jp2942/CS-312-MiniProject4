@@ -1,3 +1,4 @@
+import BlogPostForm from './components/BlogPostForm'
 import { useEffect, useState } from 'react'
 import Signup from './components/Signup'
 import Signin from './components/Signin'
@@ -53,6 +54,7 @@ if (loading) {
       {user ? (
         <>
           <h1>Signed in as {user.name}</h1>
+          <BlogPostForm />
           <button type="button" onClick={handleLogout}>Log Out</button>
         </>
       ) : (
