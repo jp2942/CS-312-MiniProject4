@@ -25,6 +25,27 @@ app.get("/api/test", function (req, res) {
     res.json({ message: "Express is working" });
 });
 
+// Tell React whether someone is already signed in
+app.get("/api/me", function (req, res) {
+    if (!req.session.user) {
+        return res.status(401).json({ error: "You need to sign in" });
+    }
+
+    res.json({ user: req.session.user });
+});
+
+// End the current session
+app.post("/api/logout", function (req, res) {
+    req.session.destroy(function (error) {
+        if (error) {
+            return res.status(500).json({ error: "Could not log out" });
+        }
+
+        res.clearCookie("blog.sid", { path: "/" });
+        res.json({ message: "Logged out" });
+    });
+});
+
 // Show signup form
 app.get("/signup", function (req, res) {
     res.render("signup", { error: null });
