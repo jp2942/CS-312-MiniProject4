@@ -4,6 +4,7 @@ const db = require("./db");
 const session = require("express-session");
 app.set("view engine", "ejs"); // Use EJS templates to display the pages
 app.use(express.urlencoded({ extended: false })); // Make submitted form fields available in req.body
+app.use(express.json()); // Read JSON submitted by React
 app.use(express.static("public")); // Serve files from the public folder
 
 // Stay signed in
@@ -34,54 +35,55 @@ app.get("/signin", function (req, res) {
     res.render("signin", { error: null });
 });
 
-// Check the user ID and save a new account
-app.post("/signup", async function (req, res) {
+// Create an account and return JSON to React
+app.post("/api/signup", async function (req, res) {
     const userId = (req.body.user_id || "").trim();
     const password = req.body.password || "";
     const name = (req.body.name || "").trim();
 
-    // Check if valid account
     if (!userId || !password.trim() || !name) {
-        return res.status(400).render("signup", {
-            error: "Some fields are not filled in"
+        return res.status(400).json({
+            error: "Fill in all fields."
         });
     }
 
     if (userId.length > 255 || name.length > 255 ||
         Buffer.byteLength(password, "utf8") > 72) {
-        return res.status(400).render("signup", {
-            error: "Your user ID, name, or password is too long"
+        return res.status(400).json({
+            error: "Your user ID, name or password is too long."
         });
     }
 
     try {
-        // Check if user id is taken
+        // Check whether the user ID is taken
         const result = await db.query(
             "SELECT user_id FROM users WHERE user_id = $1",
             [userId]
         );
 
         if (result.rows.length > 0) {
-            return res.status(409).render("signup", {
-                error: "User ID has been snatched already"
+            return res.status(409).json({
+                error: "That user ID is already taken."
             });
         }
 
-        // Hash the password
+        // Save the account with a hashed password
         await db.query(
             `INSERT INTO users (user_id, password, name)
              VALUES ($1, crypt($2, gen_salt('bf', 10)), $3)`,
             [userId, password, name]
         );
 
-        res.redirect("/signin");
+        res.status(201).json({
+            message: "Account created sign in."
+        });
     } catch (error) {
         console.error("Signup failed:", error.message);
 
-        res.status(error.code === "23505" ? 409 : 500).render("signup", {
+        res.status(error.code === "23505" ? 409 : 500).json({
             error: error.code === "23505"
-                ? "User ID has been snatched already"
-                : "Sorry, try that again"
+                ? "That user ID is snatched already"
+                : "Could not create your account try again."
         });
     }
 });
