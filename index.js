@@ -88,20 +88,19 @@ app.post("/api/signup", async function (req, res) {
     }
 });
 
-// Check login information to start session
-app.post("/signin", async function (req, res) {
+// Check login information and return JSON to React
+app.post("/api/signin", async function (req, res) {
     const userId = (req.body.user_id || "").trim();
     const password = req.body.password || "";
 
     if (!userId || !password ||
         Buffer.byteLength(password, "utf8") > 72) {
-        return res.status(401).render("signin", {
+        return res.status(401).json({
             error: "User ID or password not right"
         });
     }
 
     try {
-        // Compare with pass hash
         const result = await db.query(
             `SELECT user_id, name FROM users
              WHERE user_id = $1
@@ -110,37 +109,35 @@ app.post("/signin", async function (req, res) {
         );
 
         if (result.rows.length === 0) {
-            return res.status(401).render("signin", {
+            return res.status(401).json({
                 error: "User ID or password not right"
             });
         }
 
-        // New session after a successful login
+        // Start a fresh session after a successful sign-in
         req.session.regenerate(function (error) {
             if (error) {
-                return res.status(500).render("signin", {
-                    error: "Please try again, could not log in"
+                return res.status(500).json({
+                    error: "try again could not log in"
                 });
             }
 
             req.session.user = result.rows[0];
 
-            // Save the session
             req.session.save(function (error) {
                 if (error) {
-                    return res.status(500).render("signin", {
-                        error: "Please try again, could not log in"
+                    return res.status(500).json({
+                        error: "try again could not log in"
                     });
                 }
 
-                res.redirect("/");
+                res.json({ user: req.session.user });
             });
         });
     } catch (error) {
         console.error("Signin failed:", error.message);
-
-        res.status(500).render("signin", {
-            error: "Please try again, could not log in"
+        res.status(500).json({
+            error: "try again could not log in"
         });
     }
 });
