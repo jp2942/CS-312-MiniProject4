@@ -324,6 +324,28 @@ app.post("/posts/:id/delete", async function (req, res) {
     }
 });
 
+// Send the blog feed to React
+app.get("/api/posts", async function (req, res) {
+    if (!req.session.user) {
+        return res.status(401).json({ error: "Sign in" });
+    }
+
+    try {
+        const result = await db.query(`
+            SELECT blog_id AS id, creator_name AS author,
+                   creator_user_id, title, body AS content,
+                   date_created AS "createdAt"
+            FROM blogs
+            ORDER BY date_created DESC, blog_id DESC
+        `);
+
+        res.json({ posts: result.rows });
+    } catch (error) {
+        console.error("Could not load posts:", error.message);
+        res.status(500).json({ error: "Could not load posts" });
+    }
+});
+
 // Create a post from React
 app.post("/api/posts", async function (req, res) {
     if (!req.session.user) {

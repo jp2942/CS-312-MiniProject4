@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-function BlogPostForm() {
+function BlogPostForm({ onPostCreated }) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [message, setMessage] = useState('')
@@ -28,6 +28,7 @@ function BlogPostForm() {
       setMessage(`Saved post: ${data.post.title}`)
       setTitle('')
       setContent('')
+      onPostCreated()
     } catch (error) {
       console.error(error)
       setMessage('Could not connect to the server')

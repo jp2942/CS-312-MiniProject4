@@ -2,11 +2,13 @@ import BlogPostForm from './components/BlogPostForm'
 import { useEffect, useState } from 'react'
 import Signup from './components/Signup'
 import Signin from './components/Signin'
+import PostList from './components/PostList'
 
 function App() {
   const [page, setPage] = useState('signin')
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
 
 useEffect(() => {
   async function checkSession() {
@@ -54,7 +56,8 @@ if (loading) {
       {user ? (
         <>
           <h1>Signed in as {user.name}</h1>
-          <BlogPostForm />
+          <BlogPostForm onPostCreated={() => setRefreshKey((count) => count + 1)} />
+          <PostList refreshKey={refreshKey} />
           <button type="button" onClick={handleLogout}>Log Out</button>
         </>
       ) : (
