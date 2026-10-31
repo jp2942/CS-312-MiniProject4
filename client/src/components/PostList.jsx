@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
+import EditPost from './EditPost'
 
-function PostList({ refreshKey }) {
+function PostList({ refreshKey, user, onPostUpdated }) {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState(null)
 
   useEffect(() => {
     async function loadPosts() {
+      setLoading(true)
+      setError('')
+
       try {
         const response = await fetch('/api/posts')
         const data = await response.json()
@@ -26,7 +31,7 @@ function PostList({ refreshKey }) {
     }
 
     loadPosts()
-}, [refreshKey])
+  }, [refreshKey])
 
   if (loading) return <p>Loading posts...</p>
   if (error) return <p>{error}</p>
@@ -44,6 +49,25 @@ function PostList({ refreshKey }) {
           <p>Author: {post.author}</p>
           <p style={{ whiteSpace: 'pre-wrap' }}>Content: {post.content}</p>
           <p>Created: {new Date(post.createdAt).toLocaleString()}</p>
+
+          {post.creator_user_id === user.user_id && (
+            <>
+              <button type="button" onClick={() => setEditingId(post.id)}>
+                Edit
+              </button>
+
+              {editingId === post.id && (
+                <EditPost
+                  post={post}
+                  onCancel={() => setEditingId(null)}
+                  onSaved={() => {
+                    setEditingId(null)
+                    onPostUpdated()
+                  }}
+                />
+              )}
+            </>
+          )}
         </article>
       ))}
     </section>

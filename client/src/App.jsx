@@ -57,7 +57,11 @@ if (loading) {
         <>
           <h1>Signed in as {user.name}</h1>
           <BlogPostForm onPostCreated={() => setRefreshKey((count) => count + 1)} />
-          <PostList refreshKey={refreshKey} />
+          <PostList
+            refreshKey={refreshKey}
+            user={user}
+            onPostUpdated={() => setRefreshKey((count) => count + 1)}
+          />
           <button type="button" onClick={handleLogout}>Log Out</button>
         </>
       ) : (
