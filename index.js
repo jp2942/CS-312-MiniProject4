@@ -2,10 +2,8 @@ const express = require("express"); // Set up Express and create the app
 const app = express();
 const db = require("./db");
 const session = require("express-session");
-app.set("view engine", "ejs"); // Use EJS templates to display the pages
-app.use(express.urlencoded({ extended: false })); // Make submitted form fields available in req.body
+
 app.use(express.json()); // Read JSON submitted by React
-app.use(express.static("public")); // Serve files from the public folder
 
 // Stay signed in
 app.use(session({
@@ -44,16 +42,6 @@ app.post("/api/logout", function (req, res) {
         res.clearCookie("blog.sid", { path: "/" });
         res.json({ message: "Logged out" });
     });
-});
-
-// Show signup form
-app.get("/signup", function (req, res) {
-    res.render("signup", { error: null });
-});
-
-// Show signin form
-app.get("/signin", function (req, res) {
-    res.render("signin", { error: null });
 });
 
 // Create an account and return JSON to React
@@ -103,7 +91,7 @@ app.post("/api/signup", async function (req, res) {
 
         res.status(error.code === "23505" ? 409 : 500).json({
             error: error.code === "23505"
-                ? "That user ID is snatched already"
+                ? "That user ID is already taken."
                 : "Could not create your account try again."
         });
     }
@@ -160,167 +148,6 @@ app.post("/api/signin", async function (req, res) {
         res.status(500).json({
             error: "try again could not log in"
         });
-    }
-});
-
-// Log out and return to signin
-app.post("/logout", function (req, res) {
-    req.session.destroy(function (error) {
-        if (error) {
-            return res.status(500).send(
-                "Please try again"
-            );
-        }
-
-        res.clearCookie("blog.sid", { path: "/" });
-        res.redirect("/signin");
-    });
-});
-
-// Display blog posts for signed-in users
-app.get("/", async function (req, res) {
-    if (!req.session.user) {
-        return res.redirect("/signin");
-    }
-
-    try {
-        const result = await db.query(`
-            SELECT
-                blog_id AS id,
-                creator_name AS author,
-                creator_user_id,
-                title,
-                body AS content,
-                date_created AS "createdAt"
-            FROM blogs
-            ORDER BY date_created DESC, blog_id DESC
-        `);
-
-        res.render("index", {
-            posts: result.rows,
-            user: req.session.user
-        });
-    } catch (error) {
-        console.error("Could not load posts:", error.message);
-        res.status(500).send("Please try again");
-    }
-});
-
-// Open the edit form for the poster
-app.get("/posts/:id/edit", async function (req, res) {
-    if (!req.session.user) {
-        return res.redirect("/signin");
-    }
-
-    const postId = Number(req.params.id);
-
-    if (!Number.isInteger(postId) ||
-        postId < 1 || postId > 2147483647) {
-        return res.status(400).send("Not an ID");
-    }
-
-    try {
-        const result = await db.query(
-            `SELECT blog_id AS id, creator_name AS author,
-                    creator_user_id, title, body AS content
-             FROM blogs
-             WHERE blog_id = $1`,
-            [postId]
-        );
-
-        const post = result.rows[0];
-
-        if (!post) {
-            return res.status(404).send("Post not found");
-        }
-
-        // Compare IDs
-        if (post.creator_user_id !== req.session.user.user_id) {
-            return res.status(403).send(
-                "You can only edit your own post"
-            );
-        }
-
-        res.render("edit", { post: post });
-    } catch (error) {
-        console.error("Could not load edit form:", error.message);
-        res.status(500).send("Please try again");
-    }
-});
-
-// Save changes when the signedin user owns the post
-app.post("/posts/:id/edit", async function (req, res) {
-    if (!req.session.user) {
-        return res.redirect("/signin");
-    }
-
-    const postId = Number(req.params.id);
-    const title = (req.body.title || "").trim();
-    const content = (req.body.content || "").trim();
-
-    if (!Number.isInteger(postId) ||
-        postId < 1 || postId > 2147483647) {
-        return res.status(400).send("Invalid post ID.");
-    }
-
-    if (!title || !content || title.length > 255) {
-        return res.status(400).send(
-            'Enter a title and some content <a href="/">Return to home</a>'
-        );
-    }
-
-    try {
-        // Update only a post belonging to this account
-        const result = await db.query(
-            `UPDATE blogs
-             SET title = $1, body = $2
-             WHERE blog_id = $3 AND creator_user_id = $4`,
-            [title, content, postId, req.session.user.user_id]
-        );
-
-        if (result.rowCount === 0) {
-            return res.status(404).send(
-                "Post not found, or do not have permission to edit it"
-            );
-        }
-
-        res.redirect("/");
-    } catch (error) {
-        console.error("Could not update post:", error.message);
-        res.status(500).send("Please try again");
-    }
-});
-
-// Delete a saved post when the user owns it
-app.post("/posts/:id/delete", async function (req, res) {
-    if (!req.session.user) {
-        return res.redirect("/signin");
-    }
-
-    const postId = Number(req.params.id);
-
-    if (!Number.isInteger(postId) ||
-        postId < 1 || postId > 2147483647) {
-        return res.status(400).send("Invalid post ID");
-    }
-
-    try {
-        const result = await db.query(
-            `DELETE FROM blogs
-             WHERE blog_id = $1 AND creator_user_id = $2`,
-            [postId, req.session.user.user_id]
-        );
-
-        if (result.rowCount === 0) {
-            return res.status(404).send(
-                "Post not found, or no permission to delete it"
-            );
-        }
-
-        res.redirect("/");
-    } catch (error) {
-        console.error("Could not delete post:", error.message);
-        res.status(500).send("Please try again");
     }
 });
 
@@ -394,7 +221,7 @@ app.put("/api/posts/:id", async function (req, res) {
     }
 
     if (!title || !content || title.length > 255) {
-        return res.status(400).json({ error: "Enter content" });
+        return res.status(400).json({ error: "Enter a title and content" });
     }
 
     try {
@@ -410,7 +237,7 @@ app.put("/api/posts/:id", async function (req, res) {
 
         if (result.rows.length === 0) {
             return res.status(404).json({
-                error: "Post not found or you cannt edit it"
+                error: "Post not found or you cannot edit it"
             });
         }
 
@@ -450,50 +277,11 @@ app.delete("/api/posts/:id", async function (req, res) {
         res.json({ message: "Post deleted." });
     } catch (error) {
         console.error("Could not delete post:", error.message);
-        res.status(500).json({ error: "Coud not delete post" });
-    }
-});
-
-// Save a blog post tied to the signedin user
-app.post("/posts", async function (req, res) {
-    if (!req.session.user) {
-        return res.redirect("/signin");
-    }
-
-    const title = (req.body.title || "").trim();
-    const content = (req.body.content || "").trim();
-
-    // Reject empty posts or ones that exceed
-    if (!title || !content || title.length > 255) {
-        return res.status(400).send(
-            'Enter some content <a href="/">Return to home</a>'
-        );
-    }
-
-    try {
-        await db.query(
-            `INSERT INTO blogs
-                (creator_name, creator_user_id, title, body)
-             VALUES ($1, $2, $3, $4)`,
-            [
-                req.session.user.name,
-                req.session.user.user_id,
-                title,
-                content
-            ]
-        );
-
-        res.redirect("/");
-    } catch (error) {
-        console.error("Couldnt create post:", error.message);
-
-        res.status(500).send(
-            'Couldnt save your post <a href="/">Return to the home</a>'
-        );
+        res.status(500).json({ error: "Could not delete post" });
     }
 });
 
 // Start the server on port 3000
 app.listen(3000, function () {
-  console.log("Server running at http://localhost:3000");
+    console.log("Server running at http://localhost:3000");
 });
