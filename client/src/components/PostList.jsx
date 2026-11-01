@@ -6,6 +6,7 @@ function PostList({ refreshKey, user, onPostUpdated }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [deleteError, setDeleteError] = useState('')
 
   useEffect(() => {
     async function loadPosts() {
@@ -33,6 +34,29 @@ function PostList({ refreshKey, user, onPostUpdated }) {
     loadPosts()
   }, [refreshKey])
 
+  async function handleDelete(post) {
+    if (!window.confirm(`Delete "${post.title}"?`)) return
+
+    setDeleteError('')
+
+    try {
+      const response = await fetch(`/api/posts/${post.id}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        setDeleteError(data.error || 'Could not delete post')
+        return
+      }
+
+      onPostUpdated()
+    } catch (error) {
+      console.error(error)
+      setDeleteError('Couldnt connect to the server')
+    }
+  }
+
   if (loading) return <p>Loading posts...</p>
   if (error) return <p>{error}</p>
 
@@ -40,7 +64,7 @@ function PostList({ refreshKey, user, onPostUpdated }) {
     <section>
       <h2>Blog Posts</h2>
       <p>Total posts: {posts.length}</p>
-
+      {deleteError && <p role="alert">{deleteError}</p>}
       {posts.length === 0 && <p>No posts yet</p>}
 
       {posts.map((post) => (
@@ -66,6 +90,10 @@ function PostList({ refreshKey, user, onPostUpdated }) {
                   }}
                 />
               )}
+
+              <button type="button" onClick={() => handleDelete(post)}>
+                Delete
+              </button>
             </>
           )}
         </article>

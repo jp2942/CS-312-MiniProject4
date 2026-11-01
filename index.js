@@ -421,6 +421,39 @@ app.put("/api/posts/:id", async function (req, res) {
     }
 });
 
+// Delete a post from React only when it belongs to the signed-in user
+app.delete("/api/posts/:id", async function (req, res) {
+    if (!req.session.user) {
+        return res.status(401).json({ error: "Sign in" });
+    }
+
+    const postId = Number(req.params.id);
+
+    if (!Number.isInteger(postId) || postId < 1 || postId > 2147483647) {
+        return res.status(400).json({ error: "Invalid post ID" });
+    }
+
+    try {
+        const result = await db.query(
+            `DELETE FROM blogs
+             WHERE blog_id = $1 AND creator_user_id = $2
+             RETURNING blog_id`,
+            [postId, req.session.user.user_id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: "Post not found or you cannot delete it"
+            });
+        }
+
+        res.json({ message: "Post deleted." });
+    } catch (error) {
+        console.error("Could not delete post:", error.message);
+        res.status(500).json({ error: "Coud not delete post" });
+    }
+});
+
 // Save a blog post tied to the signedin user
 app.post("/posts", async function (req, res) {
     if (!req.session.user) {
@@ -433,7 +466,7 @@ app.post("/posts", async function (req, res) {
     // Reject empty posts or ones that exceed
     if (!title || !content || title.length > 255) {
         return res.status(400).send(
-            'Enter a title and some content <a href="/">Return to home</a>'
+            'Enter some content <a href="/">Return to home</a>'
         );
     }
 
@@ -455,7 +488,7 @@ app.post("/posts", async function (req, res) {
         console.error("Couldnt create post:", error.message);
 
         res.status(500).send(
-            'Couldnt save your post. <a href="/">Return to the home</a>'
+            'Couldnt save your post <a href="/">Return to the home</a>'
         );
     }
 });
